@@ -108,6 +108,7 @@ Editor.Panel.extend( {
 
                 _analyzeUUIDInfo( url, type ) {
                     let self = this;
+                    self.uuidObj = {};
                     Editor.assetdb.queryAssets( url + "/**/*", type, function ( err, results ) {
                         if ( err ) return;
                         let len = results.length;
