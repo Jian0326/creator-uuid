@@ -107,7 +107,7 @@ Editor.Panel.extend( {
                 },
 
                 _analyzeUUIDInfo( url, type ) {
-                    let self = this;
+                    let self     = this;
                     self.uuidObj = {};
                     Editor.assetdb.queryAssets( url + "/**/*", type, function ( err, results ) {
                         if ( err ) return;
@@ -202,24 +202,24 @@ Editor.Panel.extend( {
                                 let uObj = uuidObj[obj["__type__"]];
                                 let url  = "";
                                 if ( uObj ) {
+                                    if ( uObj.isExist ) continue;
                                     url          = uObj.path ? "[" + uObj.path + "]" : "";
                                     result       = result + url + list[i].path + "\n";
                                     uObj.isExist = true;
-                                    break;
                                 }
                                 let componentId = obj["_componentId"];
                                 if ( !componentId ) continue;
                                 uObj = uuidObj[componentId];
                                 if ( !uObj ) continue;
+                                if ( uObj.isExist ) continue;
                                 uObj.isExist = true;
                                 url          = uObj.path ? "[" + uObj.path + "]" : "";
                                 result       = result + url + list[i].path + "\n";
-                                break;
                             }
                         }
                     }
                     //查找玩家
-                    Editor.log( "----------以下文件暂时没有找到使用---------------" );
+                    Editor.log( "----------以下文件暂时没有找到引用---------------" );
                     let values = Object.values( uuidObj );
                     let count  = values.length;
                     let sum    = 0;
@@ -232,7 +232,7 @@ Editor.Panel.extend( {
                     Editor.log( "总计有", sum, "个类型", type, "文件未被引用" );
                     this.uuidObj = {};
                     this.isFind  = false;
-                    Editor.log( "----------查找到以下文件以及在那个预制文件下使用---------------" );
+                    Editor.log( "----------查找到以下文件以及在那个预制文件下引用---------------" );
                     Editor.log( result );
                     Editor.log( "----------complete---------------" );
                 }
