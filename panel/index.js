@@ -43,6 +43,7 @@ Editor.Panel.extend( {
     <ui-button class="small" tabindex="-1"  v-on:confirm="onSelectJSPath">选择js目录</ui-button>
     <ui-button class="small" tabindex="-1"  v-on:confirm="onSelectSFPath">选择sf目录</ui-button>
     <ui-button class="small" tabindex="-1"  v-on:confirm="onSelectFontPath">选择font目录</ui-button>
+    <ui-checkbox v-value="isFindAll" >查找所有</ui-checkbox>
     <hr />
     <ui-button id="btn" v-on:confirm="onFindUUID" >查找</ui-button>
     <hr />
@@ -73,9 +74,9 @@ Editor.Panel.extend( {
                 scriptUrl: "",
                 uuidObj  : {},
                 isFind   : false,
+                isFindAll: true,
             },
             methods: {
-
                 _setOpenUrl() {
                     let path = Editor.url( 'db://assets' );
                     let files = Editor.Dialog.openFile( {
@@ -210,7 +211,7 @@ Editor.Panel.extend( {
                                 uObj = this._getSpriteFont( obj, uuidObj );
                             }
                             if ( !uObj ) continue;
-                            if ( uObj.isExist ) continue;
+                            if ( uObj.isExist && !this.isFindAll ) continue;
                             uObj.isExist = true;
                             let path = uObj.path ? "<" + uObj.path + ">" : uObj.uuid;
                             result = result + path + list[i].path + "\n";
