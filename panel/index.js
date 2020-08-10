@@ -42,6 +42,7 @@ Editor.Panel.extend( {
     <ui-input class="flex-2" id="pathInput" v-value="scriptUrl" "tabindex="-1" placeholder="输入脚本文件路径" v-value="scriptPath" ></ui-input>
     <ui-button class="small" tabindex="-1"  v-on:confirm="onSelectJSPath">选择js目录</ui-button>
     <ui-button class="small" tabindex="-1"  v-on:confirm="onSelectSFPath">选择sf目录</ui-button>
+    <ui-button class="small" tabindex="-1"  v-on:confirm="onSelectFontPath">选择font目录</ui-button>
     <hr />
     <ui-button id="btn" v-on:confirm="onFindUUID" >查找</ui-button>
     <hr />
@@ -76,7 +77,7 @@ Editor.Panel.extend( {
             methods: {
 
                 _setOpenUrl() {
-                    let path  = Editor.url( 'db://assets' );
+                    let path = Editor.url( 'db://assets' );
                     let files = Editor.Dialog.openFile( {
                         defaultPath: path,
                         properties : [ 'openDirectory' ]
@@ -106,13 +107,23 @@ Editor.Panel.extend( {
                     this._analyzeUUIDInfo( assetUrl, "sprite-frame" );
                 },
 
+                onSelectFontPath() {
+                    this._setOpenUrl();
+                    let assetUrl = Editor.remote.assetdb.fspathToUrl( this.scriptUrl );
+                    if ( this.scriptUrl === assetUrl ) {
+                        Editor.warn( "请选择项目目录哦" );
+                        return;
+                    }
+                    this._analyzeUUIDInfo( assetUrl, "label-atlas" );
+                },
+
                 _analyzeUUIDInfo( url, type ) {
-                    let self     = this;
+                    let self = this;
                     self.uuidObj = {};
                     Editor.assetdb.queryAssets( url + "/**/*", type, function ( err, results ) {
                         if ( err ) return;
                         let len = results.length;
-                        for ( let i = 0; i < len; i++ ) {
+                        for (let i = 0; i < len; i++) {
                             let uuid = results[i].uuid;
                             if ( type === "javascript" ) uuid = Editor.Utils.UuidUtils.compressUuid( results[i].uuid );
                             self.uuidObj[uuid] = results[i];
@@ -131,9 +142,10 @@ Editor.Panel.extend( {
                         return;
                     }
                     this.isFind = true;
-                    let self    = this;
-                    let objs    = Object.values( this.uuidObj );
+                    let self = this;
+                    let objs = Object.values( this.uuidObj );
                     if ( objs.length > 0 ) {
+                        Editor.log( objs[0].type );
                         this._findInfo( objs[0].type, this.uuidObj );
                         return;
                     }
@@ -159,14 +171,13 @@ Editor.Panel.extend( {
 
                 _findInfo( type, uuidOrObj ) {
                     let self = this;
-                    if ( type === "sprite-frame" ) {
-                        Editor.log( "find sprite-frame" );
+                    Editor.log( "find " + type );
+                    if ( type === "sprite-frame" || type === "label-atlas" ) {
                         Editor.assetdb.queryAssets( "db://assets/resources/prefab/**/*", [ 'prefab', 'scene' ], function ( err, results ) {
                             Editor.log( "查找 prefab 文件数量：", results.length );
                             self._analyze( results, type, uuidOrObj || self.uuid );
                         } );
                     } else if ( type === "javascript" ) {
-                        Editor.log( "find javascript" );
                         Editor.assetdb.queryAssets( "db://assets/resources/prefab/**/*", [ 'prefab', 'scene' ], function ( err, results ) {
                             Editor.log( "查找 prefab 文件数量：", results.length );
                             let uuid = uuidOrObj || Editor.Utils.UuidUtils.compressUuid( self.uuid );
@@ -180,50 +191,37 @@ Editor.Panel.extend( {
                     if ( typeof uuidOrObj === "string" ) {
                         uuidObj = { [uuidOrObj]: { uuid: uuidOrObj } };
                     }
-                    let len    = Array.isArray( list ) ? list.length : 0;
+                    let len = Array.isArray( list ) ? list.length : 0;
                     let result = "";
-                    for ( let i = 0; i < len; i++ ) {
+                    for (let i = 0; i < len; i++) {
                         let template = Fs.readFileSync( list[i].path, 'utf-8' );
-                        let json     = JSON.parse( template );
-                        let num      = json.length;
+                        let json = JSON.parse( template ) || [];
+                        let num = json.length;
                         Editor.log( "正在查找当前文件：", list[i].path );
-                        for ( let j = 0; j < num; j++ ) {
+                        for (let j = 0; j < num; j++) {
                             let obj = json[j];
                             if ( !obj ) continue;
+                            let uObj = null;
                             if ( type === "sprite-frame" ) {
-                                if ( obj["__type__"] !== "cc.Sprite" ) continue;
-                                if ( !obj["_spriteFrame"] ) continue;
-                                let uObj = uuidObj[obj["_spriteFrame"]["__uuid__"]];
-                                if ( !uObj ) continue;
-                                uObj.isExist = true;
-                                let url      = uObj.path ? "[" + uObj.path + "]" : "";
-                                result       = result + url + list[i].path + "\n";
+                                uObj = this._getSpriteFrame( obj, uuidObj );
                             } else if ( type === "javascript" ) {
-                                let uObj = uuidObj[obj["__type__"]];
-                                let url  = "";
-                                if ( uObj ) {
-                                    if ( uObj.isExist ) continue;
-                                    url          = uObj.path ? "[" + uObj.path + "]" : "";
-                                    result       = result + url + list[i].path + "\n";
-                                    uObj.isExist = true;
-                                }
-                                let componentId = obj["_componentId"];
-                                if ( !componentId ) continue;
-                                uObj = uuidObj[componentId];
-                                if ( !uObj ) continue;
-                                if ( uObj.isExist ) continue;
-                                uObj.isExist = true;
-                                url          = uObj.path ? "[" + uObj.path + "]" : "";
-                                result       = result + url + list[i].path + "\n";
+                                uObj = this._getSpriteScript( obj, uuidObj );
+                            } else if ( type === "label-atlas" ) {
+                                uObj = this._getSpriteFont( obj, uuidObj );
                             }
+                            if ( !uObj ) continue;
+                            if ( uObj.isExist ) continue;
+                            uObj.isExist = true;
+                            let path = uObj.path ? "<" + uObj.path + ">" : uObj.uuid;
+                            result = result + path + list[i].path + "\n";
                         }
                     }
                     //查找玩家
                     Editor.log( "----------以下文件暂时没有找到引用---------------" );
                     let values = Object.values( uuidObj );
-                    let count  = values.length;
-                    let sum    = 0;
-                    for ( let i = 0; i < count; i++ ) {
+                    let count = values.length;
+                    let sum = 0;
+                    for (let i = 0; i < count; i++) {
                         if ( values[i].isExist ) continue;
                         let path = values[i].path ? values[i].path : values[i].uuid;
                         Editor.log( path );
@@ -231,11 +229,50 @@ Editor.Panel.extend( {
                     }
                     Editor.log( "总计有", sum, "个类型", type, "文件未被引用" );
                     this.uuidObj = {};
-                    this.isFind  = false;
+                    this.isFind = false;
                     Editor.log( "----------查找到以下文件以及在那个预制文件下引用---------------" );
                     Editor.log( result );
                     Editor.log( "----------complete---------------" );
-                }
+                },
+                _getSpriteFrame( obj, uuidObj ) {
+                    let result = null;
+                    do {
+                        if ( obj["__type__"] !== "cc.Sprite" ) break;
+                        if ( !obj["_spriteFrame"] ) break;
+                        let uObj = uuidObj[obj["_spriteFrame"]["__uuid__"]];
+                        if ( !uObj ) break;
+                        result = uObj;
+                    } while ( 0 );
+                    return result;
+                },
+
+                _getSpriteScript( obj, uuidObj ) {
+                    let result = null;
+                    do {
+                        let uObj = uuidObj[obj["__type__"]];
+                        if ( uObj ) {
+                            result = uObj;
+                            break;
+                        }
+                        let componentId = obj["_componentId"];
+                        if ( !componentId ) break;
+                        uObj = uuidObj[componentId];
+                        if ( !uObj ) break;
+                        result = uObj;
+                    } while ( 0 );
+                    return result;
+                },
+                _getSpriteFont( obj, uuidObj ) {
+                    let result = null;
+                    do {
+                        if ( obj["__type__"] !== "cc.Label" ) break;
+                        if ( !obj["_N$file"] ) break;
+                        let uObj = uuidObj[obj["_N$file"]["__uuid__"]];
+                        if ( !uObj ) break;
+                        result = uObj;
+                    } while ( 0 );
+                    return result;
+                },
             }
         } );
     },
