@@ -114,7 +114,7 @@ Editor.Panel.extend( {
                         Editor.warn( "请选择项目目录哦" );
                         return;
                     }
-                    this._analyzeUUIDInfo( assetUrl, "label-atlas" );
+                    this._analyzeUUIDInfo( assetUrl, [ "label-atlas", "bitmap-font" ] );
                 },
 
                 _analyzeUUIDInfo( url, type ) {
@@ -172,7 +172,7 @@ Editor.Panel.extend( {
                 _findInfo( type, uuidOrObj ) {
                     let self = this;
                     Editor.log( "find " + type );
-                    if ( type === "sprite-frame" || type === "label-atlas" ) {
+                    if ( type === "sprite-frame" || type === "label-atlas" || type === "bitmap-font" ) {
                         Editor.assetdb.queryAssets( "db://assets/resources/prefab/**/*", [ 'prefab', 'scene' ], function ( err, results ) {
                             Editor.log( "查找 prefab 文件数量：", results.length );
                             self._analyze( results, type, uuidOrObj || self.uuid );
@@ -206,7 +206,7 @@ Editor.Panel.extend( {
                                 uObj = this._getSpriteFrame( obj, uuidObj );
                             } else if ( type === "javascript" ) {
                                 uObj = this._getSpriteScript( obj, uuidObj );
-                            } else if ( type === "label-atlas" ) {
+                            } else if ( type === "label-atlas" || type === "bitmap-font" ) {
                                 uObj = this._getSpriteFont( obj, uuidObj );
                             }
                             if ( !uObj ) continue;
